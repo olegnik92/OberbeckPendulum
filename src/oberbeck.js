@@ -24,7 +24,7 @@ angular.module('oberbeckPendulum',[])
                 rodLen: 150,
                 rodInertion: (1/3) * 0.5 * (0.33*0.33)
             },
-            systemPlummetWeight:0.3,
+            systemPlummetWeight:0.5,
             smallPlummetWeight:0.1,
             bigPlummetWeight:0.2,
             g: 9.8
@@ -137,23 +137,49 @@ angular.module('oberbeckPendulum',[])
 
             var threadPlummets = [];
             var rods = [];
+            var rodsPlummets = [];
+            var pushAreas = getPushAreas();
 
             for(var i = 0; i < 4; i++) {
                 var rod = svg.line(rotator.center.x, rotator.center.y + rotator.rad, rotator.center.x, rotator.center.y + rotator.rad + rotator.rodLen).attr(rodAttr);
-                rod.plummets = [];
-                rod.normalPutArea = getNormalPutAreaForRod(i);
                 rods.push(rod);
             }
 
-            function getNormalPutAreaForRod(index) {
-                if (index === 0) {
-                    return {x: rotator.center.x - 5, y: rotator.center.y + rotator.rad, width: 10, height: rotator.rodLen};
-                } else if (index === 1) {
-                    return {x: rotator.center.x + rotator.rad, y: rotator.center.y - 5, width: rotator.rodLen, height: 10};
-                } else if (index === 2) {
-                    return {x: rotator.center.x - 5, y: rotator.center.y - rotator.rad - rotator.rodLen, width: 10, height: rotator.rodLen};
-                } else {
-                    return {x: rotator.center.x - rotator.rad - rotator.rodLen, y: rotator.center.y - 5, width: rotator.rodLen, height: 10};
+            function getPushAreas() {
+                var result = [];
+                result.push(getPushArea(rotator.center.x, rotator.center.y + rotator.rad, 0));
+                result.push(getPushArea(rotator.center.x, rotator.center.y + rotator.rad + (rotator.rodLen / 2), 0));
+                result.push(getPushArea(rotator.center.x, rotator.center.y + rotator.rad + rotator.rodLen, 0));
+
+                result.push(getPushArea(rotator.center.x + rotator.rad, rotator.center.y, 90));
+                result.push(getPushArea(rotator.center.x + rotator.rad + (rotator.rodLen / 2), rotator.center.y, 90));
+                result.push(getPushArea(rotator.center.x + rotator.rad + rotator.rodLen, rotator.center.y, 90));
+
+                result.push(getPushArea(rotator.center.x, rotator.center.y - rotator.rad - rotator.rodLen, 0));
+                result.push(getPushArea(rotator.center.x, rotator.center.y - rotator.rad - (rotator.rodLen / 2), 0));
+                result.push(getPushArea(rotator.center.x, rotator.center.y - rotator.rad, 0));
+
+                result.push(getPushArea(rotator.center.x - rotator.rad - rotator.rodLen, rotator.center.y, 90));
+                result.push(getPushArea(rotator.center.x - rotator.rad - (rotator.rodLen / 2), rotator.center.y, 90));
+                result.push(getPushArea(rotator.center.x - rotator.rad, rotator.center.y, 90));
+
+                return result;
+            }
+
+            function getPushArea(x, y, a) {
+                var d = 10;
+                return {
+                    area: {
+                        x: x - d,
+                        y: y - d,
+                        width: 2*d,
+                        height: 2*d
+                    },
+                    position: {
+                        x: x,
+                        y: y,
+                        a: a
+                    }
                 }
             }
 
@@ -165,12 +191,16 @@ angular.module('oberbeckPendulum',[])
                     var matrix = new Snap.Matrix(1, 0, 0, 1, 0, 0);
                     matrix.rotate(90 * i + angle, rotator.center.x, rotator.center.y);
                     rods[i].attr({transform: matrix});
-                    for (var j = 0; j < rods[i].plummets.length; j++) {
-                        var plummet = rods[i].plummets[j].plummet;
-                        var position = rods[i].plummets[j].position;
-                        plummet.attr({x: rotator.center.x - 7, y: rotator.center.y - 3 + position});
-                        plummet.attr({transform: matrix});
-                    }
+                }
+
+                for (var i = 0; i < rodsPlummets.length; i++) {
+                    var plummet = rodsPlummets[i].plummet;
+                    var position = rodsPlummets[i].position;
+                    plummet.attr({x: position.x - 7, y: position.y - 3});
+                    var matrix = new Snap.Matrix(1, 0, 0, 1, 0, 0);
+                    matrix.rotate(angle, rotator.center.x, rotator.center.y);
+                    matrix.rotate(position.a, position.x, position.y);
+                    plummet.attr({transform: matrix});
                 }
             }
 
@@ -206,14 +236,7 @@ angular.module('oberbeckPendulum',[])
             };
 
             function getRodsPlummets() {
-                var result = [];
-                for (var i = 0; i < rods.length; i++) {
-                    for (var j = 0; j < rods[i].plummets.length; j++) {
-                        result.push(rods[i].plummets[j]);
-                    }
-                }
-                
-                return result;
+                return rodsPlummets;
             };
 
             function setSystemY(y){
@@ -239,12 +262,9 @@ angular.module('oberbeckPendulum',[])
                     return;
                 }
 
-                for (var i = 0; i < rods.length; i++) {
-                    for (var j = 0; j < rods[i].plummets.length; j++) {
-                        if (rods[i].plummets[j].plummet === plummet) {
-                            rods[i].plummets.splice(j, 1);
-                            return;
-                        }
+                for (var i = 0; i < rodsPlummets.length; i++) {
+                    if (rodsPlummets[i].plummet === plummet) {
+                        rodsPlummets.splice(i, 1);
                     }
                 }
             });
@@ -280,28 +300,14 @@ angular.module('oberbeckPendulum',[])
                 var a = Math.PI * rotatorAngle / 180;
                 var x = rx * Math.cos(a) + ry * Math.sin(a) + rotator.center.x;
                 var y = ry * Math.cos(a) - rx * Math.sin(a) + rotator.center.y;
-                for (var i = 0; i< rods.length; i++) {
-                    var rect = rods[i].normalPutArea;
-                    if (isPointInRect(x, y, rods[i].normalPutArea)) {
-                        var position = getPositionAtRod(i, x, y);
-                        rods[i].plummets.push({plummet: plummet, position: position});
+                for (var i = 0; i< pushAreas.length; i++) {
+                    if (isPointInRect(x, y, pushAreas[i].area)) {
+                        rodsPlummets.push({plummet: plummet, position: pushAreas[i].position})
                         setRotatorAngle(rotatorAngle);
                         return true;
                     }
                 }
                 return false;
-            }
-
-            function getPositionAtRod(index, x, y) {
-                if (index === 0) {
-                    return y - rotator.center.y;
-                } else if (index === 1) {
-                    return rotator.center.x - x;
-                } else if (index === 2) {
-                    return rotator.center.y - y;
-                } else {
-                    return x - rotator.center.x;
-                }
             }
 
             function isPointInRect(x, y, rect) {
@@ -402,7 +408,7 @@ angular.module('oberbeckPendulum',[])
                 var J = 4 * cnst.rotator.rodInertion;
                 var rodsPlummets = $scope.blockSystem.getRodsPlummets();
                 for (var i = 0; i < rodsPlummets.length; i++) {
-                    var l = fromPixel(Math.abs(rodsPlummets[i].position));
+                    var l = fromPixel(lenFromCenter(rodsPlummets[i].position));
                     J += (rodsPlummets[i].plummet.weight * l * l);
                 }
 
@@ -424,12 +430,17 @@ angular.module('oberbeckPendulum',[])
                     $scope.blockSystem.setSystemY(y);
                 },9);
             }
+            
 
             function stopSimulation(){
                 if(self.simulationHandlerId){
                     clearInterval(self.simulationHandlerId);
                     self.simulationHandlerId = null;
                 }
+            }
+
+            function lenFromCenter(pos) {
+                return Math.sqrt(Math.pow(pos.x - cnst.rotator.center.x, 2) + Math.pow(pos.y - cnst.rotator.center.y, 2));
             }
 
             function toPixel(m){
