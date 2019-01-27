@@ -413,12 +413,16 @@ angular.module('oberbeckPendulum',[])
                 }
 
                 var a = cnst.g / (1 + (J / (m * R * R)));
+                var a_error = normalDistr(0, a / 100);
+                a += a_error;
                 var t = 0;
                 var y = 0;
                 var startY = $scope.blockSystem.getSystemY();
+
                 self.simulationHandlerId = setInterval(function(){
                     t += 0.01;
-                    y = startY + (toPixel(0.5*a*t*t))
+                    var d = 0.5*a*t*t;
+                    y = startY + toPixel(d);
                     if(y < $scope.blockSystem.minY){
                         y = $scope.blockSystem.minY;
                         $scope.timer.stop();
@@ -449,6 +453,10 @@ angular.module('oberbeckPendulum',[])
 
             function fromPixel(p) {
                 return p / (100 * cnst.cmSize);
+            }
+
+            function normalDistr(m, s) {
+                return m + s * (Math.sqrt(-2 * Math.log(Math.random())) * Math.sin(2 * Math.PI * Math.random()));
             }
         };
 
